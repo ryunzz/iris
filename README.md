@@ -14,12 +14,12 @@ Smart glasses that use your phone as eyes, ears, and mouth while a LT acts as th
              │                                     │
              │  👁️ Camera ──── video stream ──────┼──────▶ ┌────────────┐
              │                                     │        │            │
-             │  👂 Mic ──────── audio stream ─────┼──────▶ │   LT   │
+             │  👂 Mic ──────── audio stream ─────┼──────▶ │      LT     │
              │                                     │        │   (brain)  │
              │  👄 Speaker ◀─── TTS audio ────────┼─────── │            │
              │                                     │        └─────┬──────┘
              └─────────────────────────────────────┘              │
-                                                                  │ SSH (text only)
+                                                                  │ SSH 
                                                                   ▼
                                                            ┌─────────────┐
                                                            │  Pi Zero W  │
@@ -38,17 +38,14 @@ Smart glasses that use your phone as eyes, ears, and mouth while a LT acts as th
 | Component | Role | What it does |
 |-----------|------|--------------|
 | **Phone (Galaxy S22+)** | Eyes, ears, mouth | Camera captures video. Mic captures voice. Speaker plays TTS audio output. |
-| **LT** | Brain | Runs all Python code. Processes video/audio. Calls APIs. Makes decisions. |
 | **Pi Zero W** | Dumb display terminal | Receives text strings from LT. Draws them on OLED. Zero logic. |
 
-**Important:** The Pi has NO logic. It receives text and draws it. That's it. All decisions, processing, and feature logic happen on the LT.
 
 ## Hardware Requirements
 
 - **OLED:** Elegoo 0.96" 128x64, SSD1306 driver, I2C (4 pins), address 0x3c
 - **Pi:** Raspberry Pi Zero W
 - **Phone:** Galaxy S22+ running IP Webcam app (Thyoni Tech)
-- **LT:** Any LT capable of running Python
 - **Network:** Phone WiFi hotspot connects LT + Pi
 
 ## Project Structure
@@ -76,7 +73,7 @@ iris-glasses/
 │   ├── directions/              # Turn-by-turn navigation
 │   └── translation/             # Live text translation via OCR
 │
-└── pi/                          # Pi Zero W code
+└── pi/                          # 0w
     ├── display_server.py        # Dumb terminal for OLED display
     ├── requirements.txt         # Pi dependencies
     └── setup.sh                 # Pi setup script
