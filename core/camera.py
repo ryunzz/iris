@@ -1,7 +1,7 @@
 """
 Iris Smart Glasses - Camera Manager
 
-This module runs on the laptop and captures video/images from the phone camera 
+This module runs on the LT and captures video/images from the phone camera 
 via IP Webcam.
 """
 

@@ -1,7 +1,7 @@
 """
 Iris Smart Glasses - Display Manager
 
-This module runs on the laptop and sends text to the Pi Zero W over SSH.
+This module runs on the LT and sends text to the Pi Zero W over SSH.
 The Pi displays the text on the OLED screen.
 """
 

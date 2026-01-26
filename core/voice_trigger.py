@@ -1,7 +1,7 @@
 """
 Iris Smart Glasses - Voice Trigger Manager
 
-This module runs on the laptop and handles:
+This module runs on the LT and handles:
 - Wake word detection ("Hey Iris")
 - Voice command parsing
 - Command routing to appropriate handlers

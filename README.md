@@ -4,7 +4,7 @@ AI-powered smart glasses POC using Pi Zero W + OLED display. This is a TAMU Hack
 
 ## Overview
 
-Smart glasses that use your phone as eyes, ears, and mouth while a laptop acts as the brain and a Pi Zero W drives a tiny OLED display.
+Smart glasses that use your phone as eyes, ears, and mouth while a LT acts as the brain and a Pi Zero W drives a tiny OLED display.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Smart glasses that use your phone as eyes, ears, and mouth while a laptop acts a
              │                                     │
              │  👁️ Camera ──── video stream ──────┼──────▶ ┌────────────┐
              │                                     │        │            │
-             │  👂 Mic ──────── audio stream ─────┼──────▶ │   Laptop   │
+             │  👂 Mic ──────── audio stream ─────┼──────▶ │   LT   │
              │                                     │        │   (brain)  │
              │  👄 Speaker ◀─── TTS audio ────────┼─────── │            │
              │                                     │        └─────┬──────┘
@@ -38,18 +38,18 @@ Smart glasses that use your phone as eyes, ears, and mouth while a laptop acts a
 | Component | Role | What it does |
 |-----------|------|--------------|
 | **Phone (Galaxy S22+)** | Eyes, ears, mouth | Camera captures video. Mic captures voice. Speaker plays TTS audio output. |
-| **Laptop** | Brain | Runs all Python code. Processes video/audio. Calls APIs. Makes decisions. |
-| **Pi Zero W** | Dumb display terminal | Receives text strings from laptop. Draws them on OLED. Zero logic. |
+| **LT** | Brain | Runs all Python code. Processes video/audio. Calls APIs. Makes decisions. |
+| **Pi Zero W** | Dumb display terminal | Receives text strings from LT. Draws them on OLED. Zero logic. |
 
-**Important:** The Pi has NO logic. It receives text and draws it. That's it. All decisions, processing, and feature logic happen on the laptop.
+**Important:** The Pi has NO logic. It receives text and draws it. That's it. All decisions, processing, and feature logic happen on the LT.
 
 ## Hardware Requirements
 
 - **OLED:** Elegoo 0.96" 128x64, SSD1306 driver, I2C (4 pins), address 0x3c
 - **Pi:** Raspberry Pi Zero W
 - **Phone:** Galaxy S22+ running IP Webcam app (Thyoni Tech)
-- **Laptop:** Any laptop capable of running Python
-- **Network:** Phone WiFi hotspot connects laptop + Pi
+- **LT:** Any LT capable of running Python
+- **Network:** Phone WiFi hotspot connects LT + Pi
 
 ## Project Structure
 
@@ -58,11 +58,11 @@ iris-glasses/
 ├── .gitignore
 ├── .env.example                 # API keys and config
 ├── README.md
-├── requirements.txt             # Laptop dependencies
+├── requirements.txt             # LT dependencies
 ├── config.yaml                  # Configuration file
-├── main.py                      # Entry point (runs on laptop)
+├── main.py                      # Entry point (runs on LT)
 │
-├── core/                        # Core infrastructure (laptop)
+├── core/                        # Core infrastructure (LT)
 │   ├── __init__.py
 │   ├── feature_base.py          # Abstract base class for features
 │   ├── display.py               # Sends text to Pi over SSH
@@ -70,7 +70,7 @@ iris-glasses/
 │   ├── camera.py                # Video capture from phone
 │   └── voice_trigger.py         # Wake word + command parsing
 │
-├── features/                    # Modular features (laptop)
+├── features/                    # Modular features (LT)
 │   ├── __init__.py
 │   ├── todo/                    # Voice-controlled todo list
 │   ├── directions/              # Turn-by-turn navigation
@@ -84,7 +84,7 @@ iris-glasses/
 
 ## Setup Instructions
 
-### 1. Laptop Setup
+### 1. LT Setup
 
 ```bash
 # Clone the repository
@@ -122,11 +122,11 @@ chmod +x pi/setup.sh
 2. Open the app and start the server
 3. Note the IP address shown (e.g., http://192.168.43.1:8080)
 4. Enable WiFi hotspot on your phone
-5. Connect both laptop and Pi to the phone's hotspot
+5. Connect both LT and Pi to the phone's hotspot
 
 ### 4. Configuration
 
-Edit `.env` on the laptop:
+Edit `.env` on the LT:
 ```bash
 # Update with your phone's IP Webcam URL
 IP_WEBCAM_URL=http://192.168.43.1:8080
@@ -144,7 +144,7 @@ OPENAI_API_KEY=your_key_here
 
 1. **Start the phone**: Open IP Webcam app and start server
 2. **Start the Pi**: SSH into Pi and run display server (or it can be auto-started)
-3. **Start the laptop brain**: 
+3. **Start the LT brain**: 
    ```bash
    cd iris-glasses
    source venv/bin/activate
@@ -176,13 +176,13 @@ The 0.96" 128x64 OLED is tiny:
 ```
 Phone (Galaxy S22+) hosting WiFi hotspot
    │
-   ├─── Laptop connects to hotspot
+   ├─── LT connects to hotspot
    │    └─── Runs main.py (brain)
    │
    └─── Pi Zero W connects to hotspot  
         └─── Runs display_server.py (display only)
 
-Laptop SSHs to Pi to send display commands
+LT SSHs to Pi to send display commands
 ```
 
 ## Development

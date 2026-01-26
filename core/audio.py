@@ -1,7 +1,7 @@
 """
 Iris Smart Glasses - Audio Manager
 
-This module runs on the laptop and handles audio I/O with the phone:
+This module runs on the LT and handles audio I/O with the phone:
 - Captures audio from phone microphone via IP Webcam
 - Converts speech to text
 - Sends TTS audio back to phone speaker via IP Webcam 2-way audio
@@ -172,7 +172,7 @@ class AudioManager:
     
     def _play_locally(self, text: str) -> None:
         """
-        Fallback method to play TTS locally on laptop.
+        Fallback method to play TTS locally on LT.
         
         Args:
             text: Text to speak

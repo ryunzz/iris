@@ -2,7 +2,7 @@
 """
 Iris Smart Glasses - Main Application
 
-Entry point that runs on the laptop. This is the "brain" that:
+Entry point that runs on the LT. This is the "brain" that:
 - Connects to Pi Zero W for display
 - Connects to phone for camera/audio
 - Manages voice commands and features
