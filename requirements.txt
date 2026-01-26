@@ -1,0 +1,17 @@
+# Audio
+SpeechRecognition
+pyaudio
+pyttsx3
+gTTS
+
+# Camera
+opencv-python
+requests
+numpy
+
+# Config
+python-dotenv
+pyyaml
+
+# Utils
+Pillow

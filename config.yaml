@@ -1,0 +1,24 @@
+# Iris Smart Glasses Configuration
+
+pi:
+  host: "raspberrypi.local"  # Or IP address
+  user: "pi"
+  display_server_path: "/home/pi/iris/pi/display_server.py"
+
+display:
+  type: "SSD1306"
+  width: 128
+  height: 64
+
+ip_webcam:
+  # Base URL shown in IP Webcam app (e.g., http://192.168.43.1:8080)
+  # Actual value loaded from .env
+  snapshot_path: "/shot.jpg"
+  audio_path: "/audio.wav"
+  video_path: "/video"
+  # 2-way audio endpoint for TTS output to phone speaker (verify in app)
+  tts_path: "/audio.wav"
+
+voice:
+  wake_word: "hey iris"
+  listen_timeout: 5
