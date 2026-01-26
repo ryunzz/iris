@@ -27,6 +27,7 @@ from core.feature_base import FeatureBase
 # from features.todo.feature import TodoFeature
 # from features.directions.feature import DirectionsFeature
 # from features.translation.feature import TranslationFeature
+from features.weather.feature import WeatherFeature
 
 
 def setup_logging() -> None:
@@ -137,8 +138,8 @@ def register_features(display, audio, camera, config) -> Dict[str, FeatureBase]:
     """
     features = {}
     
-    # TODO: Register features when they are implemented
-    # Example:
+    # Register features when they are implemented
+    features["weather"] = WeatherFeature(display, audio, camera, config)
     # features["todo"] = TodoFeature(display, audio, camera, config)
     # features["directions"] = DirectionsFeature(display, audio, camera, config)
     # features["translation"] = TranslationFeature(display, audio, camera, config)
@@ -204,7 +205,11 @@ def main_loop(display, audio, camera, voice_trigger, features) -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting main loop...")
     
-    current_feature = None
+    # Start with weather feature active by default
+    current_feature = features.get("weather")
+    if current_feature:
+        current_feature.activate()
+        logger.info("Started with weather feature active by default")
     
     try:
         while True:
