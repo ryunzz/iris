@@ -520,9 +520,9 @@ class Display:
         """Show main menu."""
         lines = [
             "MAIN MENU",
-            "○ Todo List",
-            "○ Weather", 
-            "○ Connect"
+            "> 1. Todo List",
+            "  2. Translation", 
+            "  3. Connect"
         ]
         self.manager.send_lines(lines)
     
@@ -530,9 +530,19 @@ class Display:
         """Show todo menu."""
         lines = [
             "TODO MENU",
-            "○ View List",
-            "○ Add Item",
-            "○ Back"
+            "> 1. View List",
+            "  2. Add Item",
+            "  3. View Instructions"
+        ]
+        self.manager.send_lines(lines)
+    
+    def show_todo_instructions(self) -> None:
+        """Show todo usage instructions."""
+        lines = [
+            "TODO INSTRUCTIONS",
+            "Say 'up/down' to nav",
+            "Say 'cross' to mark",
+            "Say 'back' to return"
         ]
         self.manager.send_lines(lines)
     
