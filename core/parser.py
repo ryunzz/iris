@@ -25,6 +25,7 @@ class State(Enum):
     TODO_MENU = "todo_menu"               # Todo instructions and options
     TODO_LIST = "todo_list"               # Show todos
     TODO_ADD = "todo_add"                 # Voice input for new todo
+    TODO_INSTRUCTIONS = "todo_instructions"  # Show todo usage instructions
     TRANSLATION = "translation"           # Live translation feed
     DEVICE_LIST = "device_list"           # Dynamic list of IoT devices
     CONNECTED_LIGHT = "connected_light"
@@ -99,36 +100,41 @@ class CommandParser:
         if not transcript:
             return ParseResult()
         
+        # Strip "iris" prefix from commands (preserves "hey iris" wake word)
+        cleaned_transcript = self._strip_iris_prefix(transcript)
+        
         # Update last command time
         self.last_command_time = datetime.now()
         
-        logger.info(f"Parsing command '{transcript}' in state {self.current_state.value}")
+        logger.info(f"Parsing command '{cleaned_transcript}' in state {self.current_state.value}")
         
         # Route to appropriate parser based on current state
         if self.current_state == State.IDLE:
-            result = self._parse_idle(transcript)
+            result = self._parse_idle(cleaned_transcript)
         elif self.current_state == State.MAIN_MENU:
-            result = self._parse_main_menu(transcript)
+            result = self._parse_main_menu(cleaned_transcript)
         elif self.current_state == State.TODO_MENU:
-            result = self._parse_todo_menu(transcript)
+            result = self._parse_todo_menu(cleaned_transcript)
+        elif self.current_state == State.TODO_INSTRUCTIONS:
+            result = self._parse_todo_instructions(cleaned_transcript)
         elif self.current_state == State.TODO_LIST:
-            result = self._parse_todo_list(transcript)
+            result = self._parse_todo_list(cleaned_transcript)
         elif self.current_state == State.TODO_ADD:
-            result = self._parse_todo_add(transcript)
+            result = self._parse_todo_add(cleaned_transcript)
         elif self.current_state == State.TRANSLATION:
-            result = self._parse_translation(transcript)
+            result = self._parse_translation(cleaned_transcript)
         elif self.current_state == State.DEVICE_LIST:
-            result = self._parse_device_list(transcript)
+            result = self._parse_device_list(cleaned_transcript)
         elif self.current_state == State.CONNECTED_LIGHT:
-            result = self._parse_connected_light(transcript)
+            result = self._parse_connected_light(cleaned_transcript)
         elif self.current_state == State.CONNECTED_FAN:
-            result = self._parse_connected_fan(transcript)
+            result = self._parse_connected_fan(cleaned_transcript)
         elif self.current_state == State.CONNECTED_MOTION:
-            result = self._parse_connected_motion(transcript)
+            result = self._parse_connected_motion(cleaned_transcript)
         elif self.current_state == State.CONNECTED_DISTANCE:
-            result = self._parse_connected_distance(transcript)
+            result = self._parse_connected_distance(cleaned_transcript)
         elif self.current_state == State.CONNECTED_GLASSES:
-            result = self._parse_connected_glasses(transcript)
+            result = self._parse_connected_glasses(cleaned_transcript)
         else:
             logger.warning(f"No parser for state {self.current_state}")
             result = ParseResult()
@@ -190,6 +196,40 @@ class CommandParser:
         """Get persistent data for current state."""
         return self.state_data.get(key, default)
     
+    def _strip_iris_prefix(self, transcript: str) -> str:
+        """
+        Strip 'iris' prefix from commands while preserving 'hey iris' wake word.
+        
+        Args:
+            transcript: Raw transcript from speech recognition
+            
+        Returns:
+            Cleaned transcript with iris prefix removed (if applicable)
+        """
+        if not transcript:
+            return transcript
+            
+        # Preserve "hey iris" wake command - don't strip anything
+        if transcript.startswith("hey iris"):
+            return transcript
+            
+        # Strip "iris " prefix for standalone commands
+        if transcript.startswith("iris "):
+            cleaned = transcript[5:].strip()  # Remove "iris " and any extra spaces
+            logger.debug(f"Stripped iris prefix: '{transcript}' → '{cleaned}'")
+            return cleaned
+            
+        # Return as-is for backward compatibility
+        return transcript
+    
+    def _normalize_number_word(self, transcript: str) -> str:
+        """Convert number words to digits for easier parsing."""
+        word_to_digit = {
+            "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+            "six": "6", "seven": "7", "eight": "8", "nine": "9"
+        }
+        return word_to_digit.get(transcript, transcript)
+    
     # State-specific parsers
     
     def _parse_idle(self, transcript: str) -> ParseResult:
@@ -201,11 +241,13 @@ class CommandParser:
     
     def _parse_main_menu(self, transcript: str) -> ParseResult:
         """Parse commands in MAIN_MENU state."""
-        if transcript in ["todo", "1"]:
+        normalized = self._normalize_number_word(transcript)
+        
+        if normalized in ["todo", "1"] or transcript in ["todo", "one"]:
             return ParseResult(new_state=State.TODO_MENU)
-        elif transcript in ["translation", "2"]:
+        elif normalized in ["weather", "2"] or transcript in ["weather", "translation", "two"]:
             return ParseResult(new_state=State.TRANSLATION)
-        elif transcript in ["connect", "3"]:
+        elif normalized in ["connect", "3"] or transcript in ["connect", "three"]:
             return ParseResult(new_state=State.DEVICE_LIST)
         elif transcript == "back":
             return ParseResult(new_state=State.IDLE)
@@ -214,12 +256,21 @@ class CommandParser:
     
     def _parse_todo_menu(self, transcript: str) -> ParseResult:
         """Parse commands in TODO_MENU state."""
-        if transcript == "list":
+        normalized = self._normalize_number_word(transcript)
+        
+        if normalized in ["list", "1"] or transcript in ["list", "one"]:
             return ParseResult(new_state=State.TODO_LIST)
-        elif transcript == "add":
+        elif normalized in ["add", "2"] or transcript in ["add", "two"]:
             return ParseResult(new_state=State.TODO_ADD)
-        elif transcript == "back":
-            return ParseResult(new_state=State.MAIN_MENU)
+        elif normalized in ["instructions", "3"] or transcript in ["instructions", "three"]:
+            return ParseResult(new_state=State.TODO_INSTRUCTIONS)
+        
+        return ParseResult()
+    
+    def _parse_todo_instructions(self, transcript: str) -> ParseResult:
+        """Parse commands in TODO_INSTRUCTIONS state."""
+        if transcript == "back":
+            return ParseResult(new_state=State.TODO_MENU)
         
         return ParseResult()
     
@@ -236,7 +287,7 @@ class CommandParser:
         elif transcript == "add":
             return ParseResult(new_state=State.TODO_ADD)
         elif transcript == "back":
-            return ParseResult(new_state=State.MAIN_MENU)
+            return ParseResult(new_state=State.TODO_MENU)
         
         return ParseResult()
     
@@ -262,7 +313,7 @@ class CommandParser:
     
     def _parse_translation(self, transcript: str) -> ParseResult:
         """Parse commands in TRANSLATION state."""
-        if "iris end" in transcript:
+        if "iris end" in transcript or transcript == "end":
             return ParseResult(new_state=State.MAIN_MENU)
         else:
             # All other audio is passed through for translation
@@ -281,10 +332,12 @@ class CommandParser:
             # Connect to named device
             device_name = transcript[8:]  # Remove "connect "
             return ParseResult(action="connect_named", data={"name": device_name})
-        elif transcript in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
-            # Connect to numbered device (1-based)
-            device_number = int(transcript) - 1  # Convert to 0-based index
-            return ParseResult(action="connect_numbered", data={"index": device_number})
+        elif transcript in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] or self._normalize_number_word(transcript) in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            # Connect to numbered device (1-based) - supports both digits and words
+            normalized = self._normalize_number_word(transcript)
+            if normalized in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+                device_number = int(normalized) - 1  # Convert to 0-based index
+                return ParseResult(action="connect_numbered", data={"index": device_number})
         elif transcript == "back":
             return ParseResult(new_state=State.MAIN_MENU)
         
