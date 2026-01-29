@@ -11,6 +11,9 @@ aiohttp>=3.9.0
 # SSH (persistent connection)
 paramiko>=3.4.0
 
+# Serial (for Arduino Nano display)  
+pyserial>=3.5
+
 # Display (for Pi - install on Pi only)
 # luma.oled>=3.11.0
 # Pillow>=10.0.0
