@@ -126,7 +126,7 @@ class IrisServiceListener(ServiceListener):
         """Get human-readable name for device type."""
         names = {
             'pi': 'Pi Display',
-            'light': 'Smart Light',
+            'light': 'Lights',
             'fan': 'Smart Fan', 
             'motion': 'Motion Sensor',
             'distance': 'Distance Sensor',
@@ -184,7 +184,7 @@ class DeviceRegistry:
         """Create mock devices for testing."""
         mock_devices = {
             'pi': DiscoveredDevice('pi', 'Mock Pi Display', '127.0.0.1', 22, datetime.now(), True),
-            'light': DiscoveredDevice('light', 'Mock Smart Light', '127.0.0.1', 80, datetime.now(), True),
+            'light': DiscoveredDevice('light', 'Mock Lights', '127.0.0.1', 80, datetime.now(), True),
             'fan': DiscoveredDevice('fan', 'Mock Smart Fan', '127.0.0.1', 80, datetime.now(), True),
             'motion': DiscoveredDevice('motion', 'Mock Motion Sensor', '127.0.0.1', 80, datetime.now(), True),
             'distance': DiscoveredDevice('distance', 'Mock Distance Sensor', '127.0.0.1', 80, datetime.now(), True),
@@ -230,6 +230,9 @@ class DeviceRegistry:
         
         # Try UDP broadcast as fallback
         self._udp_broadcast_discovery(timeout=2.0)
+        
+        # Load manual devices from config (fallback for discovery failures)
+        self._load_manual_devices()
         
         # Return what we found
         devices = [d for d in self._devices.values() if d.online]
@@ -409,21 +412,37 @@ class DeviceRegistry:
     def get_device_list_for_display(self) -> List[Dict[str, str]]:
         """
         Get device list formatted for display in DEVICE_LIST state.
+        Uses specific order: Lights, Fan, Distance, Motion.
         
         Returns:
             List of dict with 'name' and 'status' keys
         """
         devices = []
-        for device in self._devices.values():
-            status = "Online" if device.online else "Offline"
-            devices.append({
-                'name': device.name,
-                'status': status,
-                'type': device.device_type
-            })
         
-        # Sort by online status (online first), then by name
-        devices.sort(key=lambda x: (x['status'] != 'Online', x['name']))
+        # Define desired order: Lights, Fan, Distance, Motion
+        device_order = ['light', 'fan', 'distance', 'motion']
+        
+        # Add devices in the specified order
+        for device_type in device_order:
+            if device_type in self._devices:
+                device = self._devices[device_type]
+                status = "Online" if device.online else "Offline"
+                devices.append({
+                    'name': device.name,
+                    'status': status,
+                    'type': device.device_type
+                })
+        
+        # Add any other devices not in the predefined order (pi, glasses, etc.)
+        for device in self._devices.values():
+            if device.device_type not in device_order:
+                status = "Online" if device.online else "Offline"
+                devices.append({
+                    'name': device.name,
+                    'status': status,
+                    'type': device.device_type
+                })
+        
         return devices
     
     def add_manual_device(self, device_type: str, ip: str, port: int = 80) -> None:
@@ -447,11 +466,104 @@ class DeviceRegistry:
         self._devices[device_type] = device
         logger.info(f"Manually added {device.name} at {ip}:{port}")
     
+    def _is_valid_ip(self, ip: str) -> bool:
+        """
+        Validate IPv4 address format and check for placeholder values.
+        
+        Args:
+            ip: IP address string to validate
+            
+        Returns:
+            True if valid IPv4 address, False otherwise
+        """
+        if not ip or not isinstance(ip, str):
+            return False
+            
+        # Skip placeholder values
+        placeholders = ['CHANGE_ME', 'change_me', 'placeholder', '', '0.0.0.0']
+        if ip.strip() in placeholders:
+            return False
+            
+        # Validate IPv4 format
+        try:
+            parts = ip.split('.')
+            if len(parts) != 4:
+                return False
+                
+            for part in parts:
+                num = int(part)
+                if num < 0 or num > 255:
+                    return False
+                    
+            return True
+        except (ValueError, AttributeError):
+            return False
+    
+    def _load_manual_devices(self) -> None:
+        """
+        Load manual devices from config.yaml.
+        Called after mDNS/UDP discovery to add configured fallback devices.
+        Validates IPs and skips placeholder values.
+        """
+        manual_devices = self.config.get('manual_devices', {})
+        if not manual_devices:
+            logger.debug("No manual devices configured")
+            return
+        
+        loaded_count = 0
+        skipped_count = 0
+        
+        for device_type, device_config in manual_devices.items():
+            # Skip if device was already discovered
+            if device_type in self._devices and self._devices[device_type].online:
+                logger.debug(f"Skipping manual device '{device_type}' - already discovered via mDNS/UDP")
+                continue
+                
+            # Extract config
+            ip = device_config.get('ip')
+            if not ip:
+                logger.warning(f"Manual device '{device_type}' missing IP address")
+                skipped_count += 1
+                continue
+                
+            # Validate IP address
+            if not self._is_valid_ip(ip):
+                logger.warning(f"Manual device '{device_type}' has invalid/placeholder IP: {ip} - skipping")
+                skipped_count += 1
+                continue
+                
+            name = device_config.get('name', self._get_device_name(device_type))
+            port = device_config.get('port', 80)
+            
+            # Validate port number
+            if not isinstance(port, int) or port < 1 or port > 65535:
+                logger.warning(f"Manual device '{device_type}' has invalid port: {port} - using default 80")
+                port = 80
+            
+            # Add the device
+            device = DiscoveredDevice(
+                device_type=device_type,
+                name=name,
+                ip=ip,
+                port=port,
+                last_seen=datetime.now(),
+                online=True
+            )
+            
+            self._devices[device_type] = device
+            logger.info(f"Loaded manual device: {name} at {ip}:{port}")
+            loaded_count += 1
+        
+        if loaded_count > 0:
+            logger.info(f"Loaded {loaded_count} manual device(s) from config")
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} invalid manual device(s)")
+    
     def _get_device_name(self, device_type: str) -> str:
         """Get human-readable name for device type."""
         names = {
             'pi': 'Pi Display',
-            'light': 'Smart Light',
+            'light': 'Lights',
             'fan': 'Smart Fan',
             'motion': 'Motion Sensor', 
             'distance': 'Distance Sensor',
