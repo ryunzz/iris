@@ -93,25 +93,25 @@ class LaptopMicAudio(AudioSource):
             
         try:
             with self.microphone as source:
-                logger.debug("Listening for speech...")
+                print("🎤 Listening...")
                 
                 # Listen for speech with timeout
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
                 
-                logger.debug("Converting speech to text...")
+                print("🔄 Converting speech to text...")
                 
                 # Transcribe using Google Speech Recognition (free, no API key)
                 transcript = self.recognizer.recognize_google(audio)
                 result = transcript.lower().strip()
                 
-                logger.info(f"Recognized: '{result}'")
+                print(f"🎤 Transcribed: '{result}'")
                 return result
                 
         except sr.WaitTimeoutError:
-            logger.debug("No speech detected within timeout")
+            print("❌ No speech detected")
             return None
         except sr.UnknownValueError:
-            logger.debug("Speech not understood")
+            print("❓ Speech not understood")
             return None
         except sr.RequestError as e:
             logger.warning(f"Speech recognition error: {e}")
@@ -210,10 +210,10 @@ class IPWebcamAudio(AudioSource):
             
             # Check if we got any data
             if audio_data.tell() == 0:
-                logger.debug("No audio data received")
+                print("❌ No audio data received")
                 return None
             
-            logger.debug("Converting speech to text...")
+            print("🔄 Converting speech to text...")
             
             # Recognize using speech_recognition
             with sr.AudioFile(audio_data) as source:
@@ -221,7 +221,7 @@ class IPWebcamAudio(AudioSource):
                 transcript = self.recognizer.recognize_google(audio)
                 result = transcript.lower().strip()
                 
-                logger.info(f"Recognized: '{result}'")
+                print(f"🎤 Transcribed: '{result}'")
                 return result
                 
         except requests.RequestException as e:
