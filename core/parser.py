@@ -22,6 +22,7 @@ class State(Enum):
     """System states for voice command processing."""
     IDLE = "idle"                         # Weather/time display
     MAIN_MENU = "main_menu"               # 1.Todo 2.Translation 3.Connect
+    TODO_MENU = "todo_menu"               # Todo instructions and options
     TODO_LIST = "todo_list"               # Show todos
     TODO_ADD = "todo_add"                 # Voice input for new todo
     TRANSLATION = "translation"           # Live translation feed
@@ -108,6 +109,8 @@ class CommandParser:
             result = self._parse_idle(transcript)
         elif self.current_state == State.MAIN_MENU:
             result = self._parse_main_menu(transcript)
+        elif self.current_state == State.TODO_MENU:
+            result = self._parse_todo_menu(transcript)
         elif self.current_state == State.TODO_LIST:
             result = self._parse_todo_list(transcript)
         elif self.current_state == State.TODO_ADD:
@@ -199,13 +202,24 @@ class CommandParser:
     def _parse_main_menu(self, transcript: str) -> ParseResult:
         """Parse commands in MAIN_MENU state."""
         if transcript in ["todo", "1"]:
-            return ParseResult(new_state=State.TODO_LIST)
+            return ParseResult(new_state=State.TODO_MENU)
         elif transcript in ["translation", "2"]:
             return ParseResult(new_state=State.TRANSLATION)
         elif transcript in ["connect", "3"]:
             return ParseResult(new_state=State.DEVICE_LIST)
         elif transcript == "back":
             return ParseResult(new_state=State.IDLE)
+        
+        return ParseResult()
+    
+    def _parse_todo_menu(self, transcript: str) -> ParseResult:
+        """Parse commands in TODO_MENU state."""
+        if transcript == "list":
+            return ParseResult(new_state=State.TODO_LIST)
+        elif transcript == "add":
+            return ParseResult(new_state=State.TODO_ADD)
+        elif transcript == "back":
+            return ParseResult(new_state=State.MAIN_MENU)
         
         return ParseResult()
     
@@ -267,6 +281,10 @@ class CommandParser:
             # Connect to named device
             device_name = transcript[8:]  # Remove "connect "
             return ParseResult(action="connect_named", data={"name": device_name})
+        elif transcript in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            # Connect to numbered device (1-based)
+            device_number = int(transcript) - 1  # Convert to 0-based index
+            return ParseResult(action="connect_numbered", data={"index": device_number})
         elif transcript == "back":
             return ParseResult(new_state=State.MAIN_MENU)
         
