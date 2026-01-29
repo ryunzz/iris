@@ -1,21 +1,16 @@
 # Audio source: "laptop", "ipwebcam", or "mock"
-# - laptop: Use laptop's built-in mic (works everywhere, no phone needed)
-# - ipwebcam: Use Android phone with IP Webcam app
-# - mock: Keyboard input for testing
 audio_source: "laptop"
 
 # Only needed if audio_source is "ipwebcam"
-# Leave blank to be prompted at startup
 phone_ip: ""
 
 # Discovery settings
 discovery:
-  mdns_timeout: 5          # Seconds to wait for mDNS
+  mdns_timeout: 5
   udp_broadcast_port: 5353
-  rescan_interval: 30      # Background rescan interval
-  
+  rescan_interval: 30
+
 # mDNS hostnames (what to look for)
-# DO NOT put IPs here - these are hostnames for discovery
 device_hostnames:
   pi: "iris-pi.local"
   light: "iris-light.local"
@@ -24,16 +19,36 @@ device_hostnames:
   distance: "iris-distance.local"
   glasses2: "iris-glasses2.local"
 
+# Manual device IPs (fallback when discovery fails)
+# Texas team: Just change the IP addresses below to match your devices
+manual_devices:
+  light:
+    ip: "100.117.21.192"
+    name: "Smart Light"
+    port: 80
+  fan:
+    ip: "CHANGE_ME"
+    name: "Smart Fan"
+    port: 80
+  motion:
+    ip: "CHANGE_ME"
+    name: "Motion Sensor"
+    port: 80
+  distance:
+    ip: "CHANGE_ME"
+    name: "Distance Sensor"
+    port: 80
+
 # Server
 server:
-  port: 5000
+  port: 5001
 
 # Features
 weather:
   location: "College Station, TX"
   lat: 30.6280
   lon: -96.3344
-  
+
 translation:
   source: "en"
   target: "fr"
