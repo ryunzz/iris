@@ -54,8 +54,15 @@ def display_lines(device: ssd1306, lines: List[str]) -> None:
     """
     try:
         with canvas(device) as draw:
-            # Use default font
-            font = ImageFont.load_default()
+            # Try to load a better font, fall back to default
+            font = None
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+            except:
+                try:
+                    font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 12)
+                except:
+                    font = ImageFont.load_default()
             
             # Display up to 4 lines
             for i, line in enumerate(lines[:MAX_LINES]):
@@ -67,7 +74,7 @@ def display_lines(device: ssd1306, lines: List[str]) -> None:
                 y = i * 16
                 
                 # Draw the text
-                draw.text((0, y), line, font=font, fill=255)
+                draw.text((0, y), line, font=font, fill="white")
                 
         logger.debug(f"Displayed {len(lines)} lines: {lines}")
     except Exception as e:

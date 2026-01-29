@@ -1,24 +1,44 @@
-# Iris Smart Glasses Configuration
+# Audio source: "laptop", "ipwebcam", or "mock"
+# - laptop: Use laptop's built-in mic (works everywhere, no phone needed)
+# - ipwebcam: Use Android phone with IP Webcam app
+# - mock: Keyboard input for testing
+audio_source: "laptop"
 
-pi:
-  host: "raspberrypi.local"  # Or IP address
-  user: "pi"
-  display_server_path: "/home/pi/iris/pi/display_server.py"
+# Only needed if audio_source is "ipwebcam"
+# Leave blank to be prompted at startup
+phone_ip: ""
 
-display:
-  type: "SSD1306"
-  width: 128
-  height: 64
+# Discovery settings
+discovery:
+  mdns_timeout: 5          # Seconds to wait for mDNS
+  udp_broadcast_port: 5353
+  rescan_interval: 30      # Background rescan interval
+  
+# mDNS hostnames (what to look for)
+# DO NOT put IPs here - these are hostnames for discovery
+device_hostnames:
+  pi: "iris-pi.local"
+  light: "iris-light.local"
+  fan: "iris-fan.local"
+  motion: "iris-motion.local"
+  distance: "iris-distance.local"
+  glasses2: "iris-glasses2.local"
 
-ip_webcam:
-  # Base URL shown in IP Webcam app (e.g., http://192.168.43.1:8080)
-  # Actual value loaded from .env
-  snapshot_path: "/shot.jpg"
-  audio_path: "/audio.wav"
-  video_path: "/video"
-  # 2-way audio endpoint for TTS output to phone speaker (verify in app)
-  tts_path: "/audio.wav"
+# Server
+server:
+  port: 5000
 
-voice:
-  wake_word: "hey iris"
-  listen_timeout: 5
+# Features
+weather:
+  location: "College Station, TX"
+  lat: 30.6280
+  lon: -96.3344
+  
+translation:
+  source: "en"
+  target: "fr"
+
+# Timeouts
+timeout_seconds: 10
+motion_interrupt_duration: 2
+distance_poll_interval: 0.2

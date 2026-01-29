@@ -1,6 +1,8 @@
-# Iris Smart Glasses
+# Iris Smart Glasses 🥽
 
-AI-powered smart glasses POC using Pi Zero W + OLED display. This is a TAMU Hacks hardware track project.
+Voice-controlled smart glasses system with dynamic device discovery and comprehensive mock mode.
+
+**Status: ✅ Implementation Complete** - Ready for hardware integration and demo deployment.
 
 ## Overview
 
@@ -79,25 +81,48 @@ iris-glasses/
     └── setup.sh                 # Pi setup script
 ```
 
+## Quick Start
+
+```bash
+# Setup (one time)
+./setup.sh
+
+# Run in full mock mode (no hardware needed)  
+python3 main.py --mock
+
+# Run with laptop microphone + real hardware
+python3 main.py --audio-source laptop
+
+# Run hardware diagnostics
+python3 main.py --debug-hardware
+
+# Run tests
+./run_tests.py --coverage
+```
+
+## Architecture
+
+**Phone** (mic) → **Laptop** (brain) → **Pi Zero W** (display) + **ESP32 devices** (IoT)
+
+- **State machine** voice command processing  
+- **mDNS discovery** (no hardcoded IPs)
+- **Pluggable audio** (laptop mic, IP Webcam, mock)
+- **Persistent SSH** display connection
+- **Thread-safe interrupts** for motion alerts
+- **Complete mock mode** for testing
+
 ## Setup Instructions
 
 ### 1. LT Setup
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd iris-glasses
+# Quick setup with script
+./setup.sh
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
+# OR manual setup:
+pip3 install -r requirements.txt
 cp .env.example .env
-# Edit .env with your IP Webcam URL and API keys
+# Edit .env with API keys
 ```
 
 ### 2. Pi Zero W Setup
@@ -150,16 +175,22 @@ OPENAI_API_KEY=your_key_here
 
 ## Voice Commands
 
-### Global Commands
-- **"Hey Iris, activate [feature]"** — Activate a specific feature
-- **"Hey Iris, stop"** — Stop current feature and return to idle
+```
+"hey iris"              # Wake up → Main menu
+"todo"                  # → Todo list
+"weather"               # → Weather display  
+"translation"           # → Translation mode
+"connect"               # → Device list
 
-### Features
-- **todo** — Voice-controlled todo list
-- **directions** — Turn-by-turn navigation  
-- **translation** — Live text translation via camera OCR
+# In device list:
+"connect light"         # Connect to smart light
+"connect fan"           # Connect to smart fan
 
-See individual feature README files in `features/` for specific commands.
+# Device controls:
+"on", "off"            # Light/fan control
+"low", "high"          # Fan speed
+"back"                 # Return to previous screen
+```
 
 ## Display Constraints
 
@@ -182,21 +213,49 @@ Phone (Galaxy S22+) hosting WiFi hotspot
 LT SSHs to Pi to send display commands
 ```
 
+## Configuration
+
+Edit `config.yaml` and `.env` for:
+- Audio source preference
+- Device hostnames for discovery
+- API keys (OpenWeather, DeepL)
+- Timeout and polling settings
+
+## Hardware Integration
+
+See `UNDERSTAND.md` for detailed API contracts and integration instructions.
+
+### ESP32 Requirements
+- Advertise via mDNS (e.g., "iris-light.local")
+- Implement HTTP JSON endpoints
+- Motion sensor must POST alerts to laptop
+
+### Pi Setup
+- Run `pi/setup.sh` 
+- Start `pi/advertise.py`
+- Configure SSH keys for passwordless access
+
+## Testing
+
+- **test_parser.py** - State machine behavior
+- **test_discovery.py** - Device discovery system  
+- **test_iot.py** - IoT client communication
+- **test_features.py** - Todo, weather, translation
+
+```bash
+./run_tests.py --parser     # Run specific module
+./run_tests.py --coverage   # Generate coverage report
+```
+
 ## Development
 
-### Adding New Features
+All components support mock mode for development without hardware:
 
-1. Create a new directory in `features/`
-2. Add `__init__.py` and `README.md`
-3. Create `feature.py` inheriting from `FeatureBase`
-4. Register in `main.py`
+```bash
+python3 main.py --mock --audio-source mock
+```
 
-### Code Style
-- Use type hints on all function signatures
-- Include docstrings for classes and public methods  
-- Use `logging` module, not print statements
-- Handle errors gracefully with try/except
-- Keep functions focused and short
+Use keyboard input instead of voice, ASCII display instead of OLED, simulated device responses.
 
 ## Troubleshooting
 
@@ -217,5 +276,10 @@ LT SSHs to Pi to send display commands
 - **Software**: Python application architecture
 - **Mobile**: IP Webcam integration for camera/audio
 - **AI**: Voice recognition and command processing
+
+---
+
+**Full documentation:** `UNDERSTAND.md`  
+**Hardware diagnostics:** `python3 main.py --debug-hardware`
 
 Built for TAMU Hacks Hardware Track 2026
