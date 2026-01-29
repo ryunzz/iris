@@ -8,7 +8,7 @@ Handles todo item storage, persistence, and cursor navigation.
 import json
 import logging
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 
@@ -330,8 +330,6 @@ class TodoList:
             return False
 
 
-# Import fix
-from typing import Optional
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ Supports mock mode with static test data.
 
 import logging
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
 import os
 
@@ -236,8 +236,6 @@ class Weather:
         return self.api_key is not None
 
 
-# Import fix
-from typing import List
 
 
 if __name__ == "__main__":

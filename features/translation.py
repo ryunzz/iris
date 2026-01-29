@@ -7,7 +7,7 @@ Provides real-time translation using DeepL API with mock mode support.
 
 import logging
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import time
 
 try:
@@ -251,8 +251,6 @@ class Translator:
         return language_names.get(lang_code.upper(), lang_code)
 
 
-# Import fix
-from typing import List
 
 
 if __name__ == "__main__":
