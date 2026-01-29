@@ -139,6 +139,9 @@ async def handle_state_change(new_state: State, display: Display, weather: Weath
     elif new_state == State.TODO_MENU:
         display.show_todo_menu()
         
+    elif new_state == State.TODO_INSTRUCTIONS:
+        display.show_todo_instructions()
+        
     elif new_state == State.TODO_LIST:
         todos = todo.get_visible(window=3)
         display.show_todo_list(todos, cursor=todo.cursor_index)
@@ -380,6 +383,12 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
         logger.info("✅ Test mode: Basic setup successful")
         return
     
+    # Actually run device discovery (mDNS + UDP + manual devices from config)
+    if not args.mock:
+        logger.info("Running device discovery...")
+        devices = registry.discover_all(timeout=10.0)
+        logger.info(f"Discovery completed: found {len(devices)} devices")
+    
     # Only wait for Pi if we're actually using Pi display
     if display_type == "pi" and not args.mock:
         logger.info("Waiting for Pi display...")
@@ -494,18 +503,20 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
             # Listen for voice (or keyboard in mock)
             transcript = audio.listen(timeout=0.5)
             if transcript:
-                logger.info(f"Heard: '{transcript}'")
+                print(f"🧠 Processing: '{transcript}'")
                 result = parser.parse(transcript)
                 
                 # Handle state transitions from commands
                 if result.new_state:
+                    print(f"⚡ State transition: {parser.get_current_state()} → {result.new_state}")
                     await handle_state_change(result.new_state, display, weather, todo, iot, registry, device_cursor)
                 # Handle other command actions
                 elif result.action:
+                    print(f"⚡ Action: {result.action}")
                     device_cursor = await handle_command(result, display, iot, todo, translator, weather, registry, parser, device_cursor)
                 # Show feedback for unrecognized commands
                 else:
-                    logger.warning(f"Command not recognized: '{transcript}'")
+                    print(f"❓ Command not recognized: '{transcript}'")
                     display.show_text("Command not\nrecognized", center=True)
                     # Brief pause to show the message
                     await asyncio.sleep(1.5)
