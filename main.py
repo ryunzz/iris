@@ -73,6 +73,16 @@ def parse_args():
                        help='Audio input source (default: from config or laptop)')
     parser.add_argument('--phone-ip', type=str, default=None,
                        help='Phone IP for ipwebcam audio source')
+    
+    # Display hardware options
+    parser.add_argument('--display', choices=['none', 'terminal', 'nano', 'esp32', 'pi'],
+                       default=None,
+                       help='Display hardware (default: terminal in mock, pi in real mode)')
+    parser.add_argument('--display-ip', type=str, default=None,
+                       help='IP address for ESP32 display (required for --display esp32)')
+    parser.add_argument('--serial-port', type=str, default=None,
+                       help='Serial port for Nano display (default: auto-detect)')
+    
     parser.add_argument('--test-mode', action='store_true',
                        help='Quick test mode for validation (exits after setup)')
     
@@ -116,7 +126,7 @@ async def handle_interrupt(interrupt: Interrupt, display: Display, parser: Comma
 
 
 async def handle_state_change(new_state: State, display: Display, weather: Weather, 
-                             todo: TodoList, iot: IoTClient, registry: DeviceRegistry) -> None:
+                             todo: TodoList, iot: IoTClient, registry: DeviceRegistry, device_cursor: int = 0) -> None:
     """Handle state transitions from timeout."""
     if new_state == State.IDLE:
         # Show weather/time screen
@@ -126,36 +136,49 @@ async def handle_state_change(new_state: State, display: Display, weather: Weath
     elif new_state == State.MAIN_MENU:
         display.show_main_menu()
         
+    elif new_state == State.TODO_MENU:
+        display.show_todo_menu()
+        
     elif new_state == State.TODO_LIST:
         todos = todo.get_visible(window=3)
         display.show_todo_list(todos, cursor=todo.cursor_index)
         
     elif new_state == State.DEVICE_LIST:
         devices = registry.get_device_list_for_display()
-        display.show_device_list(devices, cursor=0)
+        display.show_device_list(devices, cursor=device_cursor)
 
 
 async def handle_command(result: ParseResult, display: Display, iot: IoTClient, 
                         todo: TodoList, translator: Translator, weather: Weather, 
-                        registry: DeviceRegistry, parser: CommandParser) -> None:
+                        registry: DeviceRegistry, parser: CommandParser, device_cursor: int) -> int:
     """Handle parsed voice commands."""
     
     if not result.action:
-        return
+        return device_cursor
     
     try:
-        # Todo actions
+        # Scroll actions (work for both todo and device lists)
         if result.action == "scroll_up":
-            todo.scroll_up()
             if parser.current_state == State.TODO_LIST:
+                todo.scroll_up()
                 todos = todo.get_visible(window=3)
                 display.show_todo_list(todos, cursor=todo.cursor_index)
+            elif parser.current_state == State.DEVICE_LIST:
+                devices = registry.get_device_list_for_display()
+                if device_cursor > 0:
+                    device_cursor -= 1
+                display.show_device_list(devices, cursor=device_cursor)
                 
         elif result.action == "scroll_down":
-            todo.scroll_down()
             if parser.current_state == State.TODO_LIST:
+                todo.scroll_down()
                 todos = todo.get_visible(window=3)
                 display.show_todo_list(todos, cursor=todo.cursor_index)
+            elif parser.current_state == State.DEVICE_LIST:
+                devices = registry.get_device_list_for_display()
+                if device_cursor < len(devices) - 1:
+                    device_cursor += 1
+                display.show_device_list(devices, cursor=device_cursor)
                 
         elif result.action == "mark_done":
             todo.cross()
@@ -258,10 +281,23 @@ async def handle_command(result: ParseResult, display: Display, iot: IoTClient,
                 new_state = parser.connect_to_device(device_type)
                 parser._transition_to(new_state)
                 await _show_connected_device_screen(device_type, display, iot)
+        
+        elif result.action == "connect_numbered":
+            device_index = result.data.get("index", 0)
+            devices = registry.get_device_list_for_display()
+            if 0 <= device_index < len(devices):
+                device = devices[device_index]
+                device_type = device.get('type')
+                if device_type and registry.is_device_online(device_type):
+                    new_state = parser.connect_to_device(device_type)
+                    parser._transition_to(new_state)
+                    await _show_connected_device_screen(device_type, display, iot)
                 
     except Exception as e:
         logger.error(f"Error handling command {result.action}: {e}")
         display.show_text(f"Error: {str(e)[:40]}")
+    
+    return device_cursor
 
 
 async def _show_connected_device_screen(device_type: str, display: Display, iot: IoTClient) -> None:
@@ -323,24 +359,42 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
     
     logger.info(f"✅ Audio ready ({audio_source_type})")
     
-    # Step 2: Device discovery
-    logger.info("[2/6] Discovering devices...")
+    # Step 2: Determine display type (moved from Step 3 for conditional discovery)
+    logger.info("[2/6] Determining display type...")
+    display_type = args.display
+    if display_type is None:
+        display_type = "terminal" if args.mock else "pi"
+    
+    # Validate ESP32 display requirements early
+    if display_type == "esp32" and not args.display_ip:
+        logger.error("ESP32 display requires --display-ip parameter")
+        sys.exit(1)
+        
+    logger.info(f"Display type: {display_type}")
+    
+    # Step 3: Conditional device discovery
+    logger.info("[3/6] Discovering devices...")
     registry = create_registry(mock=args.mock, config=config)
     
     if args.test_mode:
         logger.info("✅ Test mode: Basic setup successful")
         return
     
-    if not args.mock:
+    # Only wait for Pi if we're actually using Pi display
+    if display_type == "pi" and not args.mock:
         logger.info("Waiting for Pi display...")
         try:
             registry.wait_for_device("pi", timeout=60)
             logger.info("✅ Pi found")
         except TimeoutError:
-            logger.error("❌ Pi not found! Cannot continue without display.")
-            logger.error("   Run with --mock to test without hardware")
+            logger.error("❌ Pi not found! Cannot continue without Pi display.")
+            logger.error("   Use --display terminal to test without Pi hardware")
             sys.exit(1)
-        
+    elif not args.mock:
+        logger.info("Skipping Pi discovery (not using Pi display)")
+    
+    # Discover other IoT devices (non-blocking)
+    if not args.mock:
         for device in ["light", "fan", "motion", "distance", "glasses"]:
             if registry.is_device_online(device):
                 logger.info(f"✅ {device} found")
@@ -349,19 +403,37 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
     else:
         logger.info("✅ Mock devices loaded")
     
-    # Step 3: Initialize components
-    logger.info("[3/6] Initializing components...")
+    # Step 4: Initialize components
+    logger.info("[4/6] Initializing components...")
     parser = CommandParser(registry, timeout_seconds=config.get('timeout_seconds', 10))
-    display = Display(registry=registry, mock=args.mock)
+    
+    # Initialize display with pre-determined type
+    display_kwargs = {}
+    if display_type == "esp32":
+        display_kwargs['display_ip'] = args.display_ip
+    elif display_type == "nano":
+        display_kwargs['serial_port'] = args.serial_port
+        
+    display = Display(
+        display_type=display_type,
+        registry=registry,
+        mock=args.mock,
+        **display_kwargs
+    )
     iot = IoTClient(registry=registry, mock=args.mock)
     weather = Weather(mock=args.mock)
     todo = TodoList()
     translator = Translator(mock=args.mock)
     interrupt_manager = InterruptManager()
-    logger.info("✅ Components ready")
     
-    # Step 4: Start background services
-    logger.info("[4/6] Starting services...")
+    # Device list cursor management
+    device_cursor = 0
+    
+    logger.info("✅ Components ready")
+    logger.info(f"Display: {display_type}")
+    
+    # Step 5: Start background services
+    logger.info("[5/6] Starting services...")
     server_port = config.get('server', {}).get('port', 5000)
     start_server(interrupt_manager, port=server_port)
     
@@ -370,7 +442,7 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
     
     logger.info("✅ Services running")
     
-    # Step 5: Distance sensor polling (if available)
+    # Step 6: Distance sensor polling (if available)
     distance_task = None
     if registry.is_device_online("distance"):
         async def poll_distance():
@@ -386,8 +458,8 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
         distance_task = asyncio.create_task(poll_distance())
         logger.info("✅ Distance polling started")
     
-    # Step 6: Start main loop
-    logger.info("[5/6] Starting main loop...")
+    # Step 7: Start main loop
+    logger.info("[6/6] Starting main loop...")
     logger.info("=" * 50)
     logger.info("System ready!")
     logger.info("")
@@ -417,14 +489,29 @@ async def main_loop(args, config: Dict[str, Any]) -> None:
             # Check timeout
             timeout_result = parser.check_timeout()
             if timeout_result:
-                await handle_state_change(timeout_result, display, weather, todo, iot, registry)
+                await handle_state_change(timeout_result, display, weather, todo, iot, registry, device_cursor)
             
             # Listen for voice (or keyboard in mock)
             transcript = audio.listen(timeout=0.5)
             if transcript:
                 logger.info(f"Heard: '{transcript}'")
                 result = parser.parse(transcript)
-                await handle_command(result, display, iot, todo, translator, weather, registry, parser)
+                
+                # Handle state transitions from commands
+                if result.new_state:
+                    await handle_state_change(result.new_state, display, weather, todo, iot, registry, device_cursor)
+                # Handle other command actions
+                elif result.action:
+                    device_cursor = await handle_command(result, display, iot, todo, translator, weather, registry, parser, device_cursor)
+                # Show feedback for unrecognized commands
+                else:
+                    logger.warning(f"Command not recognized: '{transcript}'")
+                    display.show_text("Command not\nrecognized", center=True)
+                    # Brief pause to show the message
+                    await asyncio.sleep(1.5)
+                    # Restore the current state display
+                    current_state = parser.get_current_state()
+                    await handle_state_change(current_state, display, weather, todo, iot, registry, device_cursor)
             
             # Small sleep to prevent CPU spinning
             await asyncio.sleep(0.01)
