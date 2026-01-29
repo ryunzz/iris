@@ -11,7 +11,19 @@ Building voice-controlled smart glasses with three main components:
 
 ## Architecture Decisions
 
-### 1. Dynamic Discovery Over Hardcoded IPs
+### 1. Pluggable Display Architecture
+**Decision:** Support multiple display hardware types with unified interface.
+**Reasoning:** Different teams have different hardware setups (Texas: ESP32, others: Pi, development: terminal).
+**Implementation:** DisplayManager base class with subclasses for none/terminal/nano/esp32/pi.
+**Enhancement:** Pi discovery is now optional - only waits for Pi when `--display pi` is explicitly used.
+**Usage:**
+- `--display none` - No output (testing) - starts immediately
+- `--display terminal` - ASCII to stdout (development) - starts immediately
+- `--display nano` - Arduino Nano over serial USB (prototyping) - starts immediately
+- `--display esp32` - ESP32 over HTTP (Texas team) - starts immediately
+- `--display pi` - Pi Zero W over SSH (main demo) - waits for Pi discovery
+
+### 2. Dynamic Discovery Over Hardcoded IPs
 **Decision:** Use mDNS (Zeroconf) with UDP broadcast fallback instead of hardcoded IP addresses.
 **Reasoning:** System needs to work in different network environments (hackathon venues, demos, development). Hardcoded IPs will break when network changes.
 **Implementation:** DeviceRegistry singleton with background rescanning every 30 seconds.
@@ -127,6 +139,25 @@ MDNS.begin("iris-light");  // or iris-fan, iris-motion, etc.
 MDNS.addService("_iris-iot", "_tcp", 80);
 ```
 
+### For Display Hardware
+
+**ESP32 Display (Texas Team):**
+```cpp
+// Implement HTTP endpoints:
+// GET /status → {"status": "ok"}
+// POST /display → {"lines": ["line1", "line2", "line3", "line4"]}
+WiFiServer server(80);
+```
+
+**Arduino Nano Display:**
+```arduino
+// Read from Serial at 9600 baud:
+// Format: "line1|line2|line3|line4\n"
+// Parse and display on OLED/LCD
+#include <SSD1306.h>
+Serial.begin(9600);
+```
+
 ### For Pi Setup
 1. Run `pi/setup.sh` to install dependencies and configure mDNS
 2. Start `pi/advertise.py` to announce iris-pi.local
@@ -145,37 +176,48 @@ MDNS.addService("_iris-iot", "_tcp", 80);
 
 ### Phase 1: Mock Mode (No Hardware)
 ```bash
-python main.py --mock
+python main.py --mock --display terminal
 ```
-**Expected:** Keyboard input prompts, ASCII terminal display, fake device responses
+**Expected:** Keyboard input prompts, ASCII terminal display, fake device responses, immediate startup
 **Validates:** State machine, command parsing, display rendering, core logic
 
-### Phase 2: Laptop Audio (No Phone)  
+### Phase 2: Display Hardware Testing (Immediate Startup)
 ```bash
-python main.py --audio-source laptop
+# Test different display types - all start immediately without waiting for Pi
+python main.py --mock --display none        # No display output
+python main.py --mock --display terminal    # ASCII to terminal
+python main.py --mock --display nano        # Arduino Nano (if connected)
+python main.py --mock --display esp32 --display-ip 192.168.1.100  # ESP32
 ```
-**Expected:** Speech recognition from laptop mic, terminal display (no Pi)
+**Expected:** Display updates on chosen hardware, immediate startup (no Pi waiting)
+**Validates:** Display abstraction layer, hardware communication, conditional Pi discovery
+
+### Phase 3: Laptop Audio (No Phone)  
+```bash
+python main.py --audio-source laptop --display terminal
+```
+**Expected:** Speech recognition from laptop mic, terminal display
 **Validates:** Audio capture, speech-to-text, voice command processing
 
-### Phase 3: Pi Display (Laptop + Pi)
+### Phase 4: Pi Display (Laptop + Pi)
 ```bash
-python main.py --audio-source laptop
+python main.py --audio-source laptop --display pi
 ```
 **Prereq:** Pi running advertise.py and accessible via SSH
 **Expected:** OLED display updates, persistent SSH connection
 **Validates:** Device discovery, SSH connection, display protocol
 
-### Phase 4: IoT Devices (Laptop + Pi + ESP32s)
+### Phase 5: IoT Devices (Laptop + Pi + ESP32s)
 ```bash
-python main.py --audio-source laptop
+python main.py --audio-source laptop --display pi
 ```
 **Prereq:** ESP32 devices advertising via mDNS and responding to HTTP
 **Expected:** Device discovery finds ESP32s, device control commands work
 **Validates:** mDNS discovery, HTTP device communication, IoT integration
 
-### Phase 5: IP Webcam (Full System)
+### Phase 6: IP Webcam (Full System)
 ```bash
-python main.py --audio-source ipwebcam --phone-ip 192.168.43.1
+python main.py --audio-source ipwebcam --phone-ip 192.168.43.1 --display pi
 ```  
 **Prereq:** Android phone with IP Webcam app running
 **Expected:** Audio from phone, full system integration
@@ -192,7 +234,7 @@ python main.py --debug-hardware
 
 - [x] UNDERSTAND.md created and initial documentation
 - [x] core/discovery.py - Dynamic device discovery with mDNS + UDP fallback
-- [x] core/display.py - Persistent SSH connection with mock mode
+- [x] core/display.py - Pluggable display architecture (none/terminal/nano/esp32/pi)
 - [x] core/audio.py - Pluggable audio sources (mock, laptop mic, IP Webcam)
 - [x] core/parser.py - State machine implementation with timeout handling
 - [x] Features implementation (todo, weather, translation)
@@ -257,22 +299,31 @@ python main.py --debug-hardware
 
 ## Final System Status
 
-**✅ IMPLEMENTATION COMPLETE**
+**✅ IMPLEMENTATION COMPLETE + ENHANCED**
 
-The Iris Smart Glasses software system has been fully implemented according to specification:
+The Iris Smart Glasses software system has been fully implemented according to specification with additional display hardware flexibility:
 
 1. **Architecture**: State machine-based voice command processing ✅
 2. **Discovery**: Dynamic mDNS device discovery (no hardcoded IPs) ✅
 3. **Audio**: Pluggable sources (laptop mic, IP Webcam, mock) ✅  
-4. **Display**: Persistent SSH connection to Pi Zero W ✅
+4. **Display**: Pluggable hardware (none/terminal/nano/esp32/pi) ✅
 5. **IoT**: HTTP client with device registry integration ✅
 6. **Interrupts**: Thread-safe motion alert handling ✅
 7. **Mock Mode**: Complete system simulation for testing ✅
 8. **Diagnostics**: Hardware integration testing mode ✅
 9. **Tests**: Comprehensive test coverage across all modules ✅
 
-**Ready for hardware integration and demo deployment.**
+### Enhanced Display System
+- **None**: No output (testing without hardware) - immediate startup
+- **Terminal**: ASCII display to stdout (development) - immediate startup
+- **Nano**: Arduino Nano over serial USB (prototyping) - immediate startup
+- **ESP32**: ESP32 over HTTP (Texas team glasses) - immediate startup
+- **Pi**: Pi Zero W over SSH (main demo glasses) - waits for Pi discovery
+
+**Key Improvement**: Pi discovery is now conditional. Development workflows start immediately.
+
+**Ready for hardware integration and demo deployment across different team setups.**
 
 ---
 
-**Last Updated:** 2026-01-29 - Implementation completed with full test suite
+**Last Updated:** 2026-01-29 - Implementation completed with pluggable display architecture and full test suite

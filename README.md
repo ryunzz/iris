@@ -90,8 +90,17 @@ iris-glasses/
 # Run in full mock mode (no hardware needed)  
 python3 main.py --mock
 
-# Run with laptop microphone + real hardware
-python3 main.py --audio-source laptop
+# Run with laptop microphone + terminal display (starts immediately)
+python3 main.py --audio-source laptop --display terminal
+
+# Run with ESP32 display (Texas team - starts immediately)
+python3 main.py --audio-source laptop --display esp32 --display-ip 192.168.1.100
+
+# Run with Arduino Nano display (starts immediately)
+python3 main.py --audio-source laptop --display nano
+
+# Run with Pi Zero W display (waits for Pi discovery)
+python3 main.py --audio-source laptop --display pi
 
 # Run hardware diagnostics
 python3 main.py --debug-hardware
@@ -213,6 +222,40 @@ Phone (Galaxy S22+) hosting WiFi hotspot
 LT SSHs to Pi to send display commands
 ```
 
+## Display Options
+
+The system supports multiple display hardware types:
+
+| Display Type | Description | Usage | Startup Speed |
+|--------------|-------------|-------|---------------|
+| `none` | No display output | Testing without hardware | Immediate |
+| `terminal` | ASCII display to stdout | Local development | Immediate |
+| `nano` | Arduino Nano over serial USB | Prototyping | Immediate |
+| `esp32` | ESP32 over HTTP | Texas team glasses | Immediate |
+| `pi` | Pi Zero W over SSH | Main demo glasses | Waits for Pi |
+
+### Display Examples
+
+```bash
+# No display (testing only)
+python3 main.py --display none
+
+# Terminal ASCII (default in mock mode)
+python3 main.py --display terminal
+
+# Arduino Nano (auto-detect USB port)
+python3 main.py --display nano
+
+# Arduino Nano (specific port)
+python3 main.py --display nano --serial-port /dev/ttyUSB0
+
+# ESP32 display (requires IP)
+python3 main.py --display esp32 --display-ip 192.168.1.100
+
+# Pi Zero W (default in real mode)
+python3 main.py --display pi
+```
+
 ## Configuration
 
 Edit `config.yaml` and `.env` for:
@@ -225,10 +268,24 @@ Edit `config.yaml` and `.env` for:
 
 See `UNDERSTAND.md` for detailed API contracts and integration instructions.
 
-### ESP32 Requirements
+### ESP32 Requirements (IoT Devices)
 - Advertise via mDNS (e.g., "iris-light.local")
 - Implement HTTP JSON endpoints
 - Motion sensor must POST alerts to laptop
+
+### ESP32 Display Requirements (Texas Team)
+```cpp
+// ESP32 display must implement:
+// GET /status → 200 OK (health check)
+// POST /display with JSON: {"lines": ["line1", "line2", "line3", "line4"]}
+```
+
+### Arduino Nano Display Requirements  
+```arduino
+// Nano display reads from serial (9600 baud):
+// Format: "line1|line2|line3|line4\n"
+// Parse and display on OLED/LCD
+```
 
 ### Pi Setup
 - Run `pi/setup.sh` 
