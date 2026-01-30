@@ -100,6 +100,15 @@ class CommandParser:
         if not transcript:
             return ParseResult()
         
+        # Map commonly misheard phrases to intended commands
+        misheard_aliases = {
+            "i respect": "iris back",
+            "chris back": "iris back", 
+            "first on": "iris on",
+            "first off": "iris off"
+        }
+        transcript = misheard_aliases.get(transcript, transcript)
+        
         # Strip "iris" prefix from commands (preserves "hey iris" wake word)
         cleaned_transcript = self._strip_iris_prefix(transcript)
         
@@ -264,6 +273,8 @@ class CommandParser:
             return ParseResult(new_state=State.TODO_ADD)
         elif normalized in ["instructions", "3"] or transcript in ["instructions", "three"]:
             return ParseResult(new_state=State.TODO_INSTRUCTIONS)
+        elif transcript == "back":
+            return ParseResult(new_state=State.MAIN_MENU)
         
         return ParseResult()
     
